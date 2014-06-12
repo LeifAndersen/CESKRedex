@@ -1,12 +1,13 @@
 #lang racket
 
-(require redex)
+(require redex
+         pict)
 
 (define-language λv
   (lam (λ (x ...) e))
   (ae lam x boolean number (o ae ...))
   (o + - * =)
-  (ce (ae ae ...) (if ae e e) (call/cc ae) (set! v ae) (letrec ((x ae) ...) e))
+  (ce (ae ae ...) (if ae e e) (call/cc ae) (set! x ae) (letrec ((x ae) ...) e))
   (e ae ce (let ((x e)) e))
   (x variable-not-otherwise-mentioned))
 
@@ -27,7 +28,7 @@
    (--> e
         (ς e () () halt)
         "inject"
-        (side-condition (not ((redex-match CESK v) (term e)))))
+        (side-condition/hidden (not ((redex-match CESK v) (term e)))))
    (--> (ς v ρ σ halt)
         v
         "exit")
@@ -39,23 +40,24 @@
    (--> (ς ae ρ σ κ)
         (applykont κ (A ae ρ σ) σ)
         "applykont"
-        (side-condition (not ((redex-match CESK v) (term e)))))
-   (--> (ς (if ae e_1 e_2) ρ σ)
+        (side-condition/hidden (or (not ((redex-match CESK v) (term ae)))
+                                   (not (equal? (term κ) (term halt))))))
+   (--> (ς (if ae e_1 e_2) ρ σ κ)
         (ς e_1 ρ σ κ)
         "ift"
         (side-condition (term (A ae ρ σ))))
-   (--> (ς (if ae e_1 e_2) ρ σ)
-        (ς e_1 ρ σ κ)
+   (--> (ς (if ae e_1 e_2) ρ σ κ)
+        (ς e_2 ρ σ κ)
         "iff"
         (side-condition (not (term (A ae ρ σ)))))
-   (--> (ς (let ((x e_1)) e_2) ρ σ κ_1)
+   (--> (ς (let ((x  e_1)) e_2) ρ σ κ_1)
         (ς e_1 ρ σ κ_2)
         "let"
-        (where κ_2 (letk x e_2 ρ κ)))
+        (where κ_2 (letk x e_2 ρ κ_1)))
    (--> (ς (set! x ae) ρ σ_1 κ)
         (applykont κ void σ_2)
         "set!"
-        (where σ_2 (σ-exntend σ ((ρ-lookup ρ x) (A ae ρ σ)))))
+        (where σ_2 (σ-extend σ_1 ((ρ-lookup ρ x) (A ae ρ σ_1)))))
    (--> (ς (letrec ((x ae) ...) e) ρ_1 σ_1 κ)
         (ς e ρ_2 σ_2 κ)
         "letrec"
@@ -139,3 +141,39 @@
   alloc-n : x ... -> (addr ...)
   [(alloc-n) ()]
   [(alloc-n x_1 x_2 ...) ,(cons (term (alloc x_1)) (term (alloc-n x_2 ...)))])
+
+;; Tests
+
+(define (test-suite)
+  (test-->> red
+            (term (+ 3 2 1))
+            (term 6))
+  (test-->> red
+            (term ((λ (x) (+ x 4)) 3))
+            (term 7))
+  (test-->> red
+            (term (let ((x 5))
+                    x))
+            (term 5))
+  (test-->> red
+            (term (let ((x 5))
+                    (let ((y 6))
+                      (+ x y))))
+            (term 11))
+  (test-->> red
+            (term (let ((x (+ 3 2)))
+                    (+ x 5)))
+            (term 10))
+  (test-->> red
+            (term (let ((x 5))
+                    (let ((x 6))
+                      x)))
+            (term 6))
+  (test-->> red
+            (term (let ((x 5))
+                    (let ((y (set! x 6)))
+                      x)))
+            (term 6))
+  (test-results))
+
+(test-suite)
