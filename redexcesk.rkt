@@ -181,7 +181,7 @@
         "inject"
         (side-condition/hidden (not ((redex-match CESK^ v^) (term e)))))
    (--> (ς^ v^ ρ^ σ^ halt)
-        v
+        v^
         "exit")
    (--> (ς^ (ae_1 ae_2 ...) ρ^ σ^ κ^)
         (proc^ (v^_2 ... σ^ κ^) ...)
@@ -199,7 +199,7 @@
         "applykont"
         (side-condition/hidden (or (not ((redex-match CESK^ v^) (term ae)))
                                    (not (equal? (term κ^_1) (term halt)))))
-        (where (state^ ...) (applykont κ^_1 (A^ ae ρ^ σ^) σ^)))
+        (where (state^ ...) (applykont^ κ^_1 (A^ ae ρ^ σ^) σ^)))
    (--> (states state^_1 ... state^_2 state^_3 ...)
         state^_2
         "applykont*")
@@ -247,19 +247,19 @@
   [(A^ boolean ρ^ σ^)       (boolean)]
   [(A^ lam ρ^ σ^)           ((clo lam ρ^))]
   [(A^ x ρ^ σ^)             (ρσ^-lookup ρ^ σ^ x)]
-  [(A^ (o ae ...) ρ^ σ^)    (Oo^ o ((A^ ae ρ^ σ^) ...))])
+  [(A^ (o ae ...) ρ^ σ^)    (Oo^ o (A^ ae ρ^ σ^) ...)])
 
 (define-metafunction CESK^
   A^-n : ae ... ρ^ σ^ -> ((v^ ...) ...)
   [(A^-n ρ^ σ)                ()]
-  [(A^-n ae_1 ae_2 ... ρ^ σ^) ((A^ ae_1 ρ^ σ^) ,@(term (A^ ae_2 ... ρ^ σ^)))])
+  [(A^-n ae_1 ae_2 ... ρ^ σ^) ((A^ ae_1 ρ^ σ^) ,@(term (A^-n ae_2 ... ρ^ σ^)))])
 
 (define-metafunction CESK^
   Oo^ : o (v^ ...) ... -> (v^ ...)
   [(Oo^ o (number) ... () (v^_3 ...) ...) ()]
-  [(Oo^ o (number) ... (v^_1 v^_2 ...) (v^_3 ...) ...)
-   (,@(term (Oo^ o (number) ... v^_1 (v^_3 ...) ...))
-    ,@(term (Oo^ o (number) ... (v^_2 ...) (v^_3 ...) ...)))]
+  [(Oo^ o (number) ... (v^_1 v^_2 v^_3 ...) (v^_4 ...) ...)
+   (,@(term (Oo^ o (number) ... (v^_1) (v^_4 ...) ...))
+    ,@(term (Oo^ o (number) ... (v^_2 v^_3 ...) (v^_4 ...) ...)))]
   [(Oo^ + (number) ...) (,(apply + (term (number ...))))]
   [(Oo^ - (number) ...) (,(apply - (term (number ...))))]
   [(Oo^ * (number) ...) (,(apply * (term (number ...))))]
@@ -274,13 +274,16 @@
    (where σ^_2        (σ^-extend σ^_1 (addr^ v^) ...))])
 
 (define-metafunction CESK^
-  applykont^ : κ^ v^ σ^ -> (state^ ...)
-  [(applykont^ (letk x e ρ^_1 addr) v^ σ^_1) ((ς^ e ρ^_2 σ^_2 κ^) ...)
+  applykont^ : κ^ (v^ ...) σ^ -> (state^ ...)
+  [(applykont^ κ^ () σ^) ()]
+  [(applykont^ κ^ (v^_1 v^_2 v^_3 ...) σ^)
+   ((applykont^ κ^ (v^_1) σ^) ,@(term (applykont^ κ^ (v^_2 v^_3 ...) σ^)))]
+  [(applykont^ (letk x e ρ^_1 addr) (v^) σ^_1) ((ς^ e ρ^_2 σ^_2 κ^) ...)
    (where (κ^ ...) (σ^-lookup σ^_1 addr))
    (where addr^    (alloc x))
    (where ρ^_2     (ρ^-extend ρ^_1 (x addr^)))
    (where σ^_2     (σ^-extend σ^_1 (addr^ v^)))]
-  [(applykont^ halt v^ σ^) ((ς^ v^ () () halt))])
+  [(applykont^ halt (v^) σ^) ((ς^ v^ () () halt))])
 
 (define-metafunction CESK^
   ρ^-lookup : ρ^ x -> addr^
@@ -360,6 +363,9 @@
 (define (test-suite^)
   (test-->> red^
             (term 5)
+            (term 5))
+  (test-->> red^
+            (term (+ 3 2))
             (term 5))
   (test-results))
 (test-suite^)
