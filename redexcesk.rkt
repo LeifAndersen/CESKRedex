@@ -186,7 +186,7 @@
    (--> (ς^ (ae_1 ae_2 ...) ρ^ σ^ κ^)
         (proc^ (v^_2 ... σ^ κ^) ...)
         "applyproc"
-        (where (closure^ ...)    (A^ ae_1 ρ^ σ^))
+        (where (closure^ ...)   (A^ ae_1 ρ^ σ^))
         (where ((v^_1 ...) ...) (A^-n ae_2 ... ρ^ σ^))
         (where ((v^_2 ...) ...) (cv-match (closure^ ...) (v^_1 ...) ...)))
    (--> (proc^ (closure^_1 v^_1 ... σ^_1 κ^_1) ...
@@ -245,7 +245,7 @@
   [(A^ ρ^ σ^)               ()]
   [(A^ number ρ^ σ^)        (number)]
   [(A^ boolean ρ^ σ^)       (boolean)]
-  [(A^ lam ρ^ σ^)           ((clo lam ρ^))]
+  [(A^ lam ρ^ σ^)           ((clo^ lam ρ^))]
   [(A^ x ρ^ σ^)             (ρσ^-lookup ρ^ σ^ x)]
   [(A^ (o ae ...) ρ^ σ^)    (Oo^ o (A^ ae ρ^ σ^) ...)])
 
@@ -269,7 +269,7 @@
 (define-metafunction CESK^
   applyproc^ : closure^ v^ ... σ^ κ^ -> state^
   [(applyproc^ (clo^ (λ (x ..._1) e) ρ^_1) v^ ..._1 σ^_1 κ^) (ς^ e ρ^_2 σ^_2 κ^)
-   (where (addr^ ...) (alloc-n^ x ...))
+   (where (addr^ ...) (alloc^-n x ...))
    (where ρ^_2        (ρ^-extend ρ^_1 (x addr^) ...))
    (where σ^_2        (σ^-extend σ^_1 (addr^ v^) ...))])
 
@@ -303,11 +303,11 @@
   [(σ^-lookup σ^ addr^) ,(second (assq (term addr^) (term σ^)))])
 
 (define-metafunction CESK^
-  σ^-extend : σ^ (addr^ v) ... -> σ^
-  [(σ^-extend σ^) σ^^]
-  [(σ^-extend ((addr_1 (v_1 ...)) ... (addr_3 (v_3 ...)) (addr_2 (v_2 ...)) ...) (addr_3 v_4))
-   ((addr_1 (v_1 ...)) ... (addr_3 ,(cons (term v_4) (term (v_3 ...)))) (addr_2 (v_2 ...)) ...)]
-  [(σ^-extend σ^ (addr^ v)) ,(cons (term (addr^ v)) (term σ^))]
+  σ^-extend : σ^ (addr^ v^) ... -> σ^
+  [(σ^-extend σ^) σ^]
+  [(σ^-extend ((addr^_1 (v^_1 ...)) ... (addr^_3 (v^_3 ...)) (addr^_2 (v^_2 ...)) ...) (addr^_3 v^_4))
+   ((addr^_1 (v^_1 ...)) ... (addr^_3 ,(cons (term v^_4) (term (v^_3 ...)))) (addr^_2 (v^_2 ...)) ...)]
+  [(σ^-extend σ^ (addr^ v^)) ,(cons (term (addr^ (v^))) (term σ^))]
   [(σ^-extend σ^ (addr^_1 v_1) (addr^_2 v_2) ...)
    (σ^-extend (σ^-extend σ^ (addr^_1 v_1)) (addr^_2 v_2) ...)])
 
@@ -322,7 +322,7 @@
 (define-metafunction CESK^
   alloc^-n : x ... -> (addr^ ...)
   [(alloc^-n) ()]
-  [(alloc^-n x_1 x_2 ...) ,(cons (term (alloc x_1)) (term (alloc-n x_2 ...)))])
+  [(alloc^-n x_1 x_2 ...) ,(cons (term (alloc^ x_1)) (term (alloc^-n x_2 ...)))])
 
 ;; Tests
 
@@ -367,6 +367,9 @@
   (test-->> red^
             (term (+ 3 2))
             (term 5))
+  (test-->> red^
+            (term ((λ (x) (+ x 1)) 5))
+            (term 6))
   (test-results))
 (test-suite^)
 
