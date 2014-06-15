@@ -7,6 +7,7 @@
 (provide red^
          red^-pic
          red~-pic
+         red~
          (rename-out [red red**]))
 
 (define-language λv
@@ -29,6 +30,7 @@
      halt))
 
 (define-extended-language CESK^ CESK
+  (e .... v^)
   (closure^ (clo^ lam ρ^))
   (tmp (proc^ (closure^ v^ ... σ^ κ^) ...)
        (state^ ...))
@@ -41,10 +43,11 @@
       halt))
 
 (define-extended-language CESK~ CESK^
+  (e .... v~)
   (closure~ (clo~ lam ρ~))
   (tmp .... (proc~ (closure v~ ... σ~ κ~) ...)
        (state~ ...))
-  (v~ v^)
+  (v~ v^ (cont κ~) closure~)
   (addr~ addr^)
   (state~ (ς~ e ρ~ σ~ κ~))
   (ρ~ ((x addr~) ...))
@@ -195,7 +198,8 @@
    (--> (ς^ (ae_1 ae_2 ...) ρ^ σ^ κ^)
         (proc^ (v^_2 ... σ^ κ^) ...)
         "applyproc"
-        (where (closure^ ...)   (A^ ae_1 ρ^ σ^))
+        (where (v^_3 ...)       (A^ ae_1 ρ^ σ^))
+        (where (closure^ ...)   (closure^-filter v^_3 ...))
         (where ((v^_1 ...) ...) (A^-n ae_2 ... ρ^ σ^))
         (where ((v^_2 ...) ...) (cv-match (closure^ ...) (v^_1 ...) ...)))
    (--> (proc^ (closure^_1 v^_1 ... σ^_1 κ^_1) ...
@@ -321,6 +325,12 @@
   [(κ^-filter v^_1 v^_2 ...)    (κ^-filter v^_2 ...)])
 
 (define-metafunction CESK^
+  closure^-filter : v^ ... -> (closure^ ...)
+  [(closure^-filter)                 ()]
+  [(closure^-filter closure^ v^ ...) (closure^ ,@(term (closure^-filter v^ ...)))]
+  [(closure^-filter v^_1 v^_2 ...)   (closure^-filter v^_2 ...)])
+
+(define-metafunction CESK^
   ρ^-lookup : ρ^ x -> addr^
   [(ρ^-lookup ρ^ x) ,(second (assq (term x) (term ρ^)))])
 
@@ -355,7 +365,8 @@
 
 (define-metafunction CESK^
   alloc^ : σ^ x -> addr^
-  [(alloc^ σ^ x) 0])
+  [(alloc^ σ^ x) x])
+  ;[(alloc^ σ^ x) 0])
 
 (define-metafunction CESK^
   alloc^-n : σ^ x ... -> (addr^ ...)
@@ -377,9 +388,10 @@
    (--> (ς~ (ae_1 ae_2 ...) ρ~ σ~ κ~)
         (proc~ (v~_2 ... σ~ κ~) ...)
         "applyproc"
-        (where (closure~ ...)   (A~ ae_1 ρ~ σ~))
+        (where (v~_3 ...)       (A~ ae_1 ρ~ σ~))
+        (where (closure~ ...)   (closure~-filter v~_3 ...))
         (where ((v~_1 ...) ...) (A~-n ae_2 ... ρ~ σ~))
-        (where ((v~_2 ...) ...) (cv-match (closure~ ...) (v~_1 ...) ...)))
+        (where ((v~_2 ...) ...) (cv-match~ (closure~ ...) (v~_1 ...) ...)))
    (--> (proc~ (closure~_1 v~_1 ... σ~_1 κ~_1) ...
                (closure~_2 v~_2 ... σ~_2 κ~_2)
                (closure~_3 v~_3 ... σ~_3 κ~_3) ...)
@@ -503,6 +515,12 @@
   [(κ~-filter v~_1 v~_2 ...)    (κ~-filter v~_2 ...)])
 
 (define-metafunction CESK~
+  closure~-filter : v~ ... -> (closure~ ...)
+  [(closure~-filter)                 ()]
+  [(closure~-filter closure~ v~ ...) (closure~ ,@(term (closure~-filter v~ ...)))]
+  [(closure~-filter v~_1 v~_2 ...)   (closure~-filter v~_2 ...)])
+
+(define-metafunction CESK~
   ρ~-lookup : ρ~ x -> addr~
   [(ρ~-lookup ρ~ x) ,(second (assq (term x) (term ρ~)))])
 
@@ -537,7 +555,10 @@
 
 (define-metafunction CESK~
   alloc~ : σ~ x -> addr~
-  [(alloc~ σ~ x) 0])
+  [(alloc~ σ~ x)
+   ,(if ((length (flatten (term σ~))) . < . 100)
+        (variable-not-in (term σ~) (term x))
+        (term x))])
 
 (define-metafunction CESK~
   alloc~-n : σ~ x ... -> (addr~ ...)
@@ -607,6 +628,31 @@
   (test-results))
 (test-suite^)
 
+(define (test-suite~)
+  (test-->> red~
+            (term 5)
+            (term 5))
+  (test-->> red~
+            (term (+ 3 2))
+            (term 5))
+  (test-->> red~
+            (term ((λ (x) (+ x 1)) 5))
+            (term 6))
+  (test-->> red~
+            (term (if #f 5 0))
+            (term 0))
+  (test-->> red~
+            (term (if #t 8 9))
+            (term 8))
+  (test-->> red~
+            (term ((λ (x) (if x 3 2)) (= 0 (- 2 2))))
+            (term 3))
+  (test-->> red~
+            (term ((λ (x y) (+ x y)) 3 2))
+            (term 5))
+  (test-results))
+(test-suite~)
+
 ;; Pictures
 
 (define red-pic
@@ -627,10 +673,10 @@
    (['ρ-extend
      (λ (lws)
        (list "" (list-ref lws 2) "[" (list-ref lws 3) "]" ""))]
-    ['σ-extend
+    ['σ^-extend
      (λ (lws)
        (list "" (list-ref lws 2) "⊔[" (list-ref lws 3) "]" ""))]
-    ['ρ-lookup
+    ['ρ^-lookup
      (λ (lws)
        (list "" (list-ref lws 2) "(" (list-ref lws 3) ")" ""))])
    (render-reduction-relation red^)))
@@ -640,10 +686,10 @@
    (['ρ-extend
      (λ (lws)
        (list "" (list-ref lws 2) "[" (list-ref lws 3) "]" ""))]
-    ['σ-extend
+    ['σ~-extend
      (λ (lws)
        (list "" (list-ref lws 2) "⊔[" (list-ref lws 3) "]" ""))]
-    ['ρ-lookup
+    ['ρ~-lookup
      (λ (lws)
        (list "" (list-ref lws 2) "(" (list-ref lws 3) ")" ""))])
-   (render-reduction-relation red^)))
+   (render-reduction-relation red~)))
