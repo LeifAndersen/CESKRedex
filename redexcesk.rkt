@@ -70,6 +70,10 @@
         "applyproc"
         (where closure   (A ae_1 ρ σ))
         (where (v_1 ...) (A-n ae_2 ... ρ σ)))
+   (--> (ς (ae_1 ae_2) ρ σ κ_1)
+        (applykont κ_2 (A ae_2 ρ σ) σ)
+        "applycc"
+        (where (cont κ_2) (A ae_1 ρ σ)))
    (--> (ς ae ρ σ κ)
         (applykont κ (A ae ρ σ) σ)
         "applykont"
@@ -207,6 +211,10 @@
                (closure^_3 v^_3 ... σ^_3 κ^_3) ...)
         (applyproc^ closure^_2 v^_2 ... σ^_2 κ^_2)
         "applyproc*")
+   (--> (ς^ (ae_1 ae_2) ρ^ σ^ κ^_1)
+        (applykont^ κ^_2 ... (A^ ae_2 ρ^ σ^) σ^)
+        "applycc"
+        (where ((cont κ^_2) ...) (A^ ae_1 ρ^ σ^)))
    (--> (ς^ ae ρ^ σ^ κ^_1)
         (applykont^ κ^_1 (A^ ae ρ^ σ^) σ^)
         "applykont"
@@ -242,8 +250,10 @@
         (where ((v^ ...) ...) (A^-n ae ... ρ^_2 σ^_1))
         (where σ^_2 (σ^-extend σ^_1 (addr^ v^) ... ...)))
    (--> (ς^ (call/cc ae) ρ^ σ^ κ^)
-        (applyproc^ (A^ ae ρ^ σ^) (cont κ^) σ^ κ^)
-        "call/cc")))
+        (proc^ (closure^ (cont κ^) σ^ κ^) ...)
+        "call/cc"
+        (where (v^_1 ...) (A^ ae ρ^ σ^))
+        (where (closure^ ...) (closure^-filter v^_1 ...)))))
 
 (define-metafunction CESK^
   cv-match : (closure^ ...) (v^ ...) ... -> ((v^ ...) ...)
@@ -299,7 +309,8 @@
    (where σ^_2        (σ^-extend σ^_1 (addr^ v^) ...))])
 
 (define-metafunction CESK^
-  applykont^ : κ^ (v^ ...) σ^ -> (state^ ...)
+  applykont^ : κ^ ... (v^ ...) σ^ -> (state^ ...)
+  [(applykont^ () σ^) ()]
   [(applykont^ κ^ () σ^) ()]
   [(applykont^ κ^ (v^_1 v^_2 v^_3 ...) σ^)
    (,@(term (applykont^ κ^ (v^_1) σ^))
@@ -310,7 +321,10 @@
    (where addr^      (alloc^ σ^_1 x))
    (where ρ^_2       (ρ^-extend ρ^_1 (x addr^)))
    (where σ^_2       (σ^-extend σ^_1 (addr^ v^)))]
-  [(applykont^ halt (v^) σ^) ((ς^ v^ () () halt))])
+  [(applykont^ halt (v^) σ^) ((ς^ v^ () () halt))]
+  [(applykont^ κ^_1 κ^_2 κ^_3 ... (v^ ...) σ^)
+   (,@(term (applykont^ κ^_1 (v^ ...) σ^))
+    ,@(term (applykont^ κ^_2 κ^_3 ... (v^ ...) σ^)))])
 
 (define-metafunction CESK^
   κ^-unfilter : v^ ... -> (v^ ...)
@@ -397,6 +411,10 @@
                (closure~_3 v~_3 ... σ~_3 κ~_3) ...)
         (applyproc~ closure~_2 v~_2 ... σ~_2 κ~_2)
         "applyproc*")
+   (--> (ς~ (ae_1 ae_2) ρ~ σ~ κ~_1)
+        (applykont~ κ~_2 ... (A~ ae_2 ρ~ σ~) σ~)
+        "applycc"
+        (where ((cont κ~_2) ...) (A~ ae_1 ρ~ σ~)))
    (--> (ς~ ae ρ~ σ~ κ~_1)
         (applykont~ κ~_1 (A~ ae ρ~ σ~) σ~)
         "applykont"
@@ -432,8 +450,10 @@
         (where ((v~ ...) ...) (A~-n ae ... ρ~_2 σ~_1))
         (where σ~_2 (σ~-extend σ~_1 (addr~ v~) ... ...)))
    (--> (ς~ (call/cc ae) ρ~ σ~ κ~)
-        (applyproc~ (A~ ae ρ~ σ~) (cont κ~) σ~ κ~)
-        "call/cc")))
+        (proc~ (closure~ (cont κ~) σ~ κ~) ...)
+        "call/cc"
+        (where (v~_1 ...) (A~ ae ρ~ σ~))
+        (where (closure~ ...) (closure~-filter v~_1 ...)))))
 
 (define-metafunction CESK~
   cv-match~ : (closure~ ...) (v~ ...) ... -> ((v~ ...) ...)
@@ -489,7 +509,8 @@
    (where σ~_2        (σ~-extend σ~_1 (addr~ v~) ...))])
 
 (define-metafunction CESK~
-  applykont~ : κ~ (v~ ...) σ~ -> (state~ ...)
+  applykont~ : κ~ ... (v~ ...) σ~ -> (state~ ...)
+  [(applykont~ () σ~) ()]
   [(applykont~ κ~ () σ~) ()]
   [(applykont~ κ~ (v~_1 v~_2 v~_3 ...) σ~)
    (,@(term (applykont~ κ~ (v~_1) σ~))
@@ -500,7 +521,10 @@
    (where addr~      (alloc~ σ~_1 x))
    (where ρ~_2       (ρ~-extend ρ~_1 (x addr~)))
    (where σ~_2       (σ~-extend σ~_1 (addr~ v~)))]
-  [(applykont~ halt (v~) σ~) ((ς~ v~ () () halt))])
+  [(applykont~ halt (v~) σ~) ((ς~ v~ () () halt))]
+  [(applykont~ κ~_1 κ~_2 κ~_3 ... (v~ ...) σ~)
+   (,@(term (applykont~ κ~_1 (v~ ...) σ~))
+    ,@(term (applykont~ κ~_2 κ~_3 ... (v~ ...) σ~)))])
 
 (define-metafunction CESK~
   κ~-unfilter : v~ ... -> (v~ ...)
