@@ -646,9 +646,9 @@
             (term 3))
   (test-->> red^
             (term ((λ (x y) (+ x y)) 3 2))
-            (term 4)
+            #;(term 4)
             (term 5)
-            (term 6))
+            #;(term 6))
   (test-results))
 (test-suite^)
 
@@ -676,6 +676,28 @@
             (term 5))
   (test-results))
 (test-suite~)
+
+(define v? (redex-match CESK v))
+
+(define (single-step? e)
+  (or (= (length (apply-reduction-relation red e))
+         1)
+      (let ([step (apply-reduction-relation red e)])
+        (ormap (λ (x) (equal? (term error)
+                              (car x)))
+                step))))
+
+(define (progress-holds? e)
+  (or (v? e) (reduces? e)))
+
+(define (reduces? e)
+  (not (null? (apply-reduction-relation red (term (,e))))))
+
+#|
+(redex-check CESK
+             e
+             (progress-holds? (term e)))
+|#
 
 ;; Pictures
 
