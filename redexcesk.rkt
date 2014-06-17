@@ -4,11 +4,7 @@
          pict)
 
 ; Ignore for the moment
-(provide red^
-         red^-pic
-         red~-pic
-         red~
-         (rename-out [red red**]))
+(provide (all-defined-out))
 
 (define-language λv
   (lam (λ (x ...) e))
