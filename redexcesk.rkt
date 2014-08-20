@@ -236,7 +236,7 @@
    (--> (ς^ (let ((x  e_1)) e_2) ρ^ σ^_1 κ^_1)
         (ς^ e_1 ρ^ σ^_2 κ^_2)
         "let"
-        (where addr^ (alloc^ σ^_1 x))
+        (where addr^ (alloc-kont^ σ^_1 x))
         (where σ^_2  (σ^-extend σ^_1 (addr^ (cont κ^_1))))
         (where κ^_2  (letk x e_2 ρ^ addr^)))
    (--> (ς^ (set! x ae) ρ^ σ^_1 κ^)
@@ -285,7 +285,7 @@
 
 (define (abstract-apply op list)
   (let ([res (apply op list)])
-    (if (between res -1 2)
+    (if (between res -2 2)
         res
         (term abstract#))))
 
@@ -397,6 +397,10 @@
   ;[(alloc^ σ^ x) 0])
 
 (define-metafunction CESK^
+  alloc-kont^ : σ^ x -> addr^
+  [(alloc-kont^ σ^ x) kont-addr])
+
+(define-metafunction CESK^
   alloc^-n : σ^ x ... -> (addr^ ...)
   [(alloc^-n σ^) ()]
   [(alloc^-n σ^ x_1 x_2 ...) ,(cons (term (alloc^ σ^ x_1)) (term (alloc^-n σ^ x_2 ...)))])
@@ -448,7 +452,7 @@
    (--> (ς~ (let ((x  e_1)) e_2) ρ~ σ~_1 κ~_1)
         (ς~ e_1 ρ~ σ~_2 κ~_2)
         "let"
-        (where addr~ (alloc~ σ~_1 x))
+        (where addr~ (alloc-kont~ σ~_1 x))
         (where σ~_2  (σ~-extend σ~_1 (addr~ (cont κ~_1))))
         (where κ~_2  (letk x e_2 ρ~ addr~)))
    (--> (ς~ (set! x ae) ρ~ σ~_1 κ~)
@@ -501,11 +505,16 @@
   [(Oo~ o (number) ... (v~_1 v~_2 v~_3 ...) (v~_4 ...) ...)
    (,@(term (Oo~ o (number) ... (v~_1) (v~_4 ...) ...))
     ,@(term (Oo~ o (number) ... (v~_2 v~_3 ...) (v~_4 ...) ...)))]
-  [(Oo~ + (number) ...) (,(apply + (term (number ...))))]
-  [(Oo~ - (number) ...) (,(apply - (term (number ...))))]
-  [(Oo~ * (number) ...) (,(apply * (term (number ...))))]
-  [(Oo~ = (number) ...) (,(apply = (term (number ...))))]
+  [(Oo~ + (number) ...)  (,(abstract-apply +  (term (number ...))))]
+  [(Oo~ - (number) ...)  (,(abstract-apply -  (term (number ...))))]
+  [(Oo~ * (number) ...)  (,(abstract-apply *  (term (number ...))))]
+  [(Oo~ = (number) ...)  (,(apply =  (term (number ...))))]
   [(Oo~ <= (number) ...) (,(apply <= (term (number ...))))]
+  [(Oo~ + (num^ ...) ...) (abstract#)]
+  [(Oo~ - (num^ ...) ...) (abstract#)]
+  [(Oo~ * (num^ ...) ...) (abstract#)]
+  [(Oo~ = (num^ ...) ...) (#t #f)]
+  [(Oo~ <= (num^ ...) ...) (#t #f)]
   [(Oo~ o (v~ ...) ...) ()])
 
 (define-metafunction CESK~
@@ -595,6 +604,13 @@
 (define-metafunction CESK~
   alloc~ : σ~ x -> addr~
   [(alloc~ σ~ x)
+   ,(if ((length (flatten (term σ~))) . < . 100)
+        (variable-not-in (term σ~) (term x))
+        (term x))])
+
+(define-metafunction CESK~
+  alloc-kont~ : σ~ x -> addr~
+  [(alloc-kont~ σ~ x)
    ,(if ((length (flatten (term σ~))) . < . 100)
         (variable-not-in (term σ~) (term x))
         (term x))])
