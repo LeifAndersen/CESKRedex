@@ -6,10 +6,13 @@
 ; Ignore for the moment
 (provide (all-defined-out))
 
+(define (between x y z)
+  (and (x . > . y) (x . < . z)))
+
 (define-language λv
   (lam (λ (x ...) e))
   (ae lam x boolean number (o ae ...))
-  (o + - * =)
+  (o + - * = <=)
   (ce (ae ae ...) (if ae e e) (call/cc ae) (set! x ae) (letrec ((x ae) ...) e))
   (e ae ce (let ((x e)) e))
   (x variable-not-otherwise-mentioned))
@@ -30,7 +33,8 @@
   (closure^ (clo^ lam ρ^))
   (tmp (proc^ (closure^ v^ ... σ^ κ^) ...)
        (state^ ...))
-  (v^ v (cont κ^) closure^)
+  (v^ v (cont κ^) closure^ num^)
+  (num^ number abstract#)
   (addr^ addr)
   (state^ (ς^ e ρ^ σ^ κ^))
   (ρ^ ((x addr^) ...))
@@ -43,7 +47,8 @@
   (closure~ (clo~ lam ρ~))
   (tmp .... (proc~ (closure v~ ... σ~ κ~) ...)
        (state~ ...))
-  (v~ v^ (cont κ~) closure~)
+  (v~ v^ (cont κ~) closure~ num~)
+  (num~ number abstract#)
   (addr~ addr^)
   (state~ (ς~ e ρ~ σ~ κ~))
   (ρ~ ((x addr~) ...))
@@ -117,10 +122,11 @@
 
 (define-metafunction CESK
   Oo : o v ... -> v
-  [(Oo + number ...) ,(apply + (term (number ...)))]
-  [(Oo - number ...) ,(apply - (term (number ...)))]
-  [(Oo * number ...) ,(apply * (term (number ...)))]
-  [(Oo = number ...) ,(apply = (term (number ...)))])
+  [(Oo + number ...)  ,(apply + (term (number ...)))]
+  [(Oo - number ...)  ,(apply - (term (number ...)))]
+  [(Oo * number ...)  ,(apply * (term (number ...)))]
+  [(Oo = number ...)  ,(apply = (term (number ...)))]
+  [(Oo <= number ...) ,(apply <= (term (number ...)))])
 
 (define-metafunction CESK
   applyproc : closure v ... σ κ -> state
@@ -218,7 +224,7 @@
                                    (not (equal? (term κ^_1) (term halt))))))
    (--> (state^_1 ... state^_2 state^_3 ...)
         state^_2
-        "applykont*")
+        "applykont*") 
    (--> (ς^ (if ae e_1 e_2) ρ^ σ^ κ^)
         (ς^ e_1 ρ^ σ^ κ^)
         "ift"
@@ -277,16 +283,28 @@
   [(A^-n ρ^ σ^)                ()]
   [(A^-n ae_1 ae_2 ... ρ^ σ^) ((A^ ae_1 ρ^ σ^) ,@(term (A^-n ae_2 ... ρ^ σ^)))])
 
+(define (abstract-apply op list)
+  (let ([res (apply op list)])
+    (if (between res -1 2)
+        res
+        (term abstract#))))
+
 (define-metafunction CESK^
   Oo^ : o (v^ ...) ... -> (v^ ...)
   [(Oo^ o (number) ... () (v^_3 ...) ...) ()]
   [(Oo^ o (number) ... (v^_1 v^_2 v^_3 ...) (v^_4 ...) ...)
    (,@(term (Oo^ o (number) ... (v^_1) (v^_4 ...) ...))
     ,@(term (Oo^ o (number) ... (v^_2 v^_3 ...) (v^_4 ...) ...)))]
-  [(Oo^ + (number) ...) (,(apply + (term (number ...))))]
-  [(Oo^ - (number) ...) (,(apply - (term (number ...))))]
-  [(Oo^ * (number) ...) (,(apply * (term (number ...))))]
-  [(Oo^ = (number) ...) (,(apply = (term (number ...))))]
+  [(Oo^ + (number) ...)  (,(abstract-apply +  (term (number ...))))]
+  [(Oo^ - (number) ...)  (,(abstract-apply -  (term (number ...))))]
+  [(Oo^ * (number) ...)  (,(abstract-apply *  (term (number ...))))]
+  [(Oo^ = (number) ...)  (,(apply =  (term (number ...))))]
+  [(Oo^ <= (number) ...) (,(apply <= (term (number ...))))]
+  [(Oo^ + (num^ ...) ...) (abstract#)]
+  [(Oo^ - (num^ ...) ...) (abstract#)]
+  [(Oo^ * (num^ ...) ...) (abstract#)]
+  [(Oo^ = (num^ ...) ...) (#t #f)]
+  [(Oo^ <= (num^ ...) ...) (#t #f)]
   [(Oo^ o (v^ ...) ...) ()])
 
 (define-metafunction CESK^
@@ -487,6 +505,7 @@
   [(Oo~ - (number) ...) (,(apply - (term (number ...))))]
   [(Oo~ * (number) ...) (,(apply * (term (number ...))))]
   [(Oo~ = (number) ...) (,(apply = (term (number ...))))]
+  [(Oo~ <= (number) ...) (,(apply <= (term (number ...))))]
   [(Oo~ o (v~ ...) ...) ()])
 
 (define-metafunction CESK~
@@ -805,7 +824,7 @@
 
 (traces red^ '(letrec
                       ((f (λ (x)
-                            (if (= x 0)
+                            (if (<= x 0)
                                 1
                                 (let ((x-1 (- x 1)))
                                   (let ((y (f x-1)))
