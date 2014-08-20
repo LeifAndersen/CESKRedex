@@ -264,7 +264,7 @@
     ,@(term (cv-match (closure^_2 closure^_3 ...) (v^ ...) ...)))])
 
 (define-metafunction CESK^
-  A^ : ae ρ^ σ^ -> (v^ ...)
+  A^ : ae ρ^ σ^ -> (v^ ...) 
   [(A^ ρ^ σ^)               ()]
   [(A^ number ρ^ σ^)        (number)]
   [(A^ boolean ρ^ σ^)       (boolean)]
@@ -586,7 +586,7 @@
   [(alloc~-n σ~ x_1 x_2 ...) ,(cons (term (alloc~ σ~ x_1)) (term (alloc~-n σ~ x_2 ...)))])
 
 ;; Tests
-
+(print "Concrete Test Suite\n")
 (define (test-suite)
   (test-->> red
             (term (+ 3 2 1))
@@ -617,10 +617,48 @@
                     (let ((y (set! x 6)))
                       x)))
             (term 6))
+ 
   (test-results))
 
-(test-suite)
+(time(test-suite))
 
+(print "Benchmark Concrete Test Suite\n")
+(define (test-suite-conc) ;;this test suite is for the concrete and is the same as the test suite for the abstract and unified
+  (test-->> red
+            (term 5)
+            (term 5))
+  (test-->> red
+            (term (+ 3 2 ))
+            (term 5))
+  (test-->> red
+            (term ((λ (x) (+ x 1)) 5))
+            (term 6))
+  (test-->> red
+            (term (if #f 5 0))
+            (term 0))
+  (test-->> red
+            (term (if #t 8 9))
+            (term 8))
+  (test-->> red
+            (term ((λ (x) (if x 3 2)) (= 0 (- 2 2))))
+            (term 3))
+  (test-->> red
+            (term ((λ (x y) (+ x y)) 3 2))
+            (term 5))
+  (test-->> red
+            (term (letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 3)))
+            (term 6))
+  (test-results))
+  (time (test-suite-conc))
+
+(print "Benchmark Abstract Test Suite\n")
 (define (test-suite^)
   (test-->> red^
             (term 5)
@@ -645,9 +683,20 @@
             #;(term 4)
             (term 5)
             #;(term 6))
+  (test-->> red^
+            (term (letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 0)))
+            (term 1))
   (test-results))
-(test-suite^)
+(time(test-suite^))
 
+(print "Benchmark Unified Test Suite\n")
 (define (test-suite~)
   (test-->> red~
             (term 5)
@@ -671,7 +720,107 @@
             (term ((λ (x y) (+ x y)) 3 2))
             (term 5))
   (test-results))
-(test-suite~)
+(time(test-suite~))
+
+(require racket/trace)
+
+(print "Benchmark Abstract Factorial Test Suite")
+
+#;(define (factorial-test-suite^)
+  (test-->> red^
+           (term (letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 0)))
+           
+           (term 1))
+  (test-->> red^
+            (term (letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 1)))
+            (term 1))
+  #;(test-->> red^
+           (term (letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 2)))
+            (term 2))
+  #;(test-->> red^
+            (term (letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 3)))
+            (term 6))
+ #; (test-->> red^
+            (term (letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 4)))
+            (term 24))
+ #; (test-->> red^
+            (term (letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 5)))
+            (term 120))
+ #; (test-->> red^
+          (term (letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 6)))
+           
+           (term 720))
+  (test-results))
+
+;(time(factorial-test-suite^))
+
+(traces red^ '(letrec
+                      ((f (λ (x)
+                            (if (= x 0)
+                                1
+                                (let ((x-1 (- x 1)))
+                                  (let ((y (f x-1)))
+                                    (* x y)))))))
+                    (f 2)))
+(print "Benchmark Unified Factorial Test Suite")
+
+#;(define (factorial-test-suite~)
+  (test-->> red~
+         
+  (test-results)))
+
+;(time(factorial-test-suite~))
+  
+  
 
 (define v? (redex-match CESK v))
 
